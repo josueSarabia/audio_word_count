@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from os import getcwd, path, mkdir
-from analyzeaudio import analyze_audio
+from src.analyzeaudio import analyze_audio
 from uuid import uuid4
 
 uploadRouter = APIRouter()
@@ -42,5 +42,5 @@ async def create_upload_file(file: UploadFile = File(...)):
 
     # add unique identifier to response
     result["UUID"] = uuid_attemp
-    
+
     return result
