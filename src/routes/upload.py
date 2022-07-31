@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from os import getcwd, path, mkdir
+# delete reltive path "src."
 from src.analyzeaudio import analyze_audio
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ async def create_upload_file(file: UploadFile = File(...)):
     results_folder = path.join(path.dirname(getcwd()), "results")
 
     # validate if results folder path exists
-    if not path.isdir(results_folder):
+    if not path.exists(results_folder):
         mkdir(results_folder)
 
     # generate unique identifier 
@@ -19,11 +20,11 @@ async def create_upload_file(file: UploadFile = File(...)):
 
     # validate if the folder of the new attemp/request exists
     base_path = path.join(results_folder, str(uuid_attemp))
-    if not path.isdir(base_path):
+    if not path.exists(base_path):
         mkdir(base_path)
     
     # validate if vocabulary.txt(words configured by user) exists
-    if not path.isfile(path.join(path.dirname(getcwd()), "vocabulary.txt")):
+    if not path.exists(path.join(path.dirname(getcwd()), "vocabulary.txt")):
         raise HTTPException(
             status_code=500,
             detail=f"file vocabulary.txt not found",

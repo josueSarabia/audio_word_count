@@ -10,6 +10,8 @@ from vosk import Model, KaldiRecognizer
 
 VOCABULARY_NAME = "vocabulary.txt"
 FOLDER_NAME = "audio-chunks"
+
+# add path path.dirname()
 model_path = path.join(getcwd(), "vosk-model-small-en-us-0.15")
 
 print(model_path)
@@ -56,7 +58,7 @@ def generate_wav_chunks(file_path, base_path):
 
     
     # create a directory to store the audio chunks
-    if not path.isdir(audio_chunks_path):
+    if not path.exists(audio_chunks_path):
         mkdir(audio_chunks_path)
 
     # process each chunk 
