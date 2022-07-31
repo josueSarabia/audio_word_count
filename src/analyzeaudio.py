@@ -4,8 +4,8 @@ from pydub.silence import split_on_silence
 from pydub.utils import mediainfo
 from textblob import TextBlob
 
-import wave
-import json
+from wave import open
+from json import loads, dump
 from vosk import Model, KaldiRecognizer
 
 VOCABULARY_NAME = "vocabulary.txt"
@@ -45,7 +45,7 @@ def generate_wav_chunks(file_path, base_path):
     # open the audio file using pydub 
     sound = AudioSegment.from_wav(file_path)
 
-    # split audio sound where silence is 700 miliseconds or more and get chunks
+    # split audio sound where silence is 500 miliseconds or more and get chunks
     chunks = split_on_silence(sound,
         min_silence_len = 500,
         silence_thresh = sound.dBFS-16,
@@ -68,7 +68,7 @@ def generate_wav_chunks(file_path, base_path):
     return len(chunks)
 
 def analyze_chunk(file_path):
-    wf = wave.open(file_path, "rb")
+    wf = open(file_path, "rb")
     rec = KaldiRecognizer(model, wf.getframerate())
     rec.SetWords(True)
 
@@ -80,9 +80,9 @@ def analyze_chunk(file_path):
         if len(data) == 0:
             break
         if rec.AcceptWaveform(data):
-            part_result = json.loads(rec.Result())
+            part_result = loads(rec.Result())
             results.append(part_result)
-    part_result = json.loads(rec.FinalResult())
+    part_result = loads(rec.FinalResult())
     results.append(part_result)
     wf.close()  # close audiofile 
 
@@ -90,6 +90,41 @@ def analyze_chunk(file_path):
         "results": results,
         "duration": mediainfo(file_path)['duration']
     }
+
+def transform_timestamp(timestamp):
+    result = ""
+    hours = timestamp / 3600
+    
+    # get hours
+    if  hours < 1:
+        result += "00:"
+    else:
+        int_hours = int(hours)
+        if int_hours < 10:
+            result += "0" + str(int_hours) + ":"
+        else:
+            result += str(int_hours) + ":"
+    
+    # get minutes
+    minutes = (hours - int(hours)) * 60
+    if minutes < 1:
+        result += "00:"
+    else:
+        int_minutes = int(minutes)
+        if int_minutes < 10:
+            result += "0" + str(int_minutes) + ":"
+        else:
+            result += str(int_minutes) + ":"
+
+    # get seconds
+    seconds = (minutes - int(minutes)) * 60
+    int_seconds = int(seconds)
+    if int_seconds < 10:
+        result += "0" + str(int_seconds) + ":"
+    else:
+        result += str(int_seconds) + ":"
+    
+    return result
 
 def add_chunk_results(results, whole_text, result_dict, overall_timestamp, vocabulary):
     for sentence in results:
@@ -106,11 +141,13 @@ def add_chunk_results(results, whole_text, result_dict, overall_timestamp, vocab
             if word in vocabulary:
                 if word in result_dict:
                     result_dict[word]["freq"] += 1
-                    result_dict[word]["timestamps"].append(overall_timestamp + timestamp)
+                    human_readable_timestamp = transform_timestamp(overall_timestamp + timestamp)
+                    result_dict[word]["timestamps"].append(human_readable_timestamp)
                 else:
+                    human_readable_timestamp = transform_timestamp(overall_timestamp + timestamp)
                     result_dict[word] = {
                         "freq": 1,
-                        "timestamps": [overall_timestamp + timestamp]
+                        "timestamps": [human_readable_timestamp]
                     }
     return {
         "text": whole_text,
@@ -125,7 +162,7 @@ def get_sentiment(text):
 def save_to_json(dictionary, base_path):
     json_path = path.join(base_path, 'results.json')
     with open(json_path, "w") as outfile:
-        json.dump(dictionary, outfile, indent = 4)
+        dump(dictionary, outfile, indent = 4)
 
 def analyze_audio(file_path, base_path):
     vocabulary = []
@@ -145,16 +182,24 @@ def analyze_audio(file_path, base_path):
     overall_timestamp = 0
     #loop chunks
     for i in range(number_of_chunks):
+
+        # get chunk text and timestamps
         chunk_path = path.join(base_path, FOLDER_NAME, f"chunk{i + 1}.wav")
         audio_results = analyze_chunk(chunk_path)
+
+        # add text and timestamps to current reuslts
         results = add_chunk_results(audio_results["results"], whole_text, result_dict, overall_timestamp, vocabulary)
+
+        # update variables with new results
         whole_text = results["text"]
         result_dict = results["dict"]
         chunk_duration = audio_results["duration"].split('.')[0]
-        overall_timestamp += int(float(chunk_duration))
+        overall_timestamp += float(chunk_duration)
 
     # get sentiment from text
     sentiment_value = get_sentiment(whole_text)
+
+    # translate sentiment to positive, negative or neutral
     sentiment = ""
     if sentiment_value >= 0.2:
         sentiment = "POSITIVE"
@@ -179,6 +224,7 @@ def analyze_audio(file_path, base_path):
         "freq": result_dict
     }
 
+    # save results to json file
     save_to_json(results_dict, base_path)
 
     return results_dict
