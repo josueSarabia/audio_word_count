@@ -1,63 +1,19 @@
-import speech_recognition as sr
 from os import path, getcwd, mkdir
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
+from pydub.utils import mediainfo
 from textblob import TextBlob
+
+import wave
+import json
+from vosk import Model, KaldiRecognizer
 
 BASE_PATH = getcwd()
 VOCABULARY = []
+FOLDER_NAME = "audio-chunks"
+model_path = "./vosk-model-small-en-us-0.15"
+model = Model(model_path)
 
-def mp3_to_text(file_path):
-    # convert mp3 file to wav                                                       
-    sound_mp3 = AudioSegment.from_mp3(file_path)
-    
-    # create new .wav file path
-    file_wav_format_path = path.join(BASE_PATH, 'transcript.wav')
-    
-    # export the mp3 to .wav inside the project
-    sound_mp3.export(file_wav_format_path, format="wav")
-
-    # open the audio file using pydub 
-    sound = AudioSegment.from_wav(file_wav_format_path)
-
-    # split audio sound where silence is 700 miliseconds or more and get chunks
-    chunks = split_on_silence(sound,
-        min_silence_len = 500,
-        silence_thresh = sound.dBFS-16,
-        keep_silence=500,
-    )
-
-    folder_name = "audio-chunks"
-    # create a directory to store the audio chunks
-    if not path.isdir(folder_name):
-        mkdir(folder_name)
-    whole_text = ""
-
-    # create a speech recognition object
-    r = sr.Recognizer()
-
-    # process each chunk 
-    for i, audio_chunk in enumerate(chunks, start=1):
-        # export audio chunk and save it in
-        # the `folder_name` directory.
-        print("saving chunk{0}.wav".format(i))
-        chunk_filename = path.join(folder_name, f"chunk{i}.wav")
-        audio_chunk.export(chunk_filename, format="wav")
-        print("Processing chunk "+str(i))
-        # recognize the chunk
-        with sr.AudioFile(chunk_filename) as source:
-            audio_listened = r.record(source)
-            # try converting it to text
-            try:
-                text = r.recognize_google(audio_listened)
-            except sr.UnknownValueError as e:
-                print("Error:", e)
-            except sr.RequestError as e:
-                print("Could not request results. check your internet connection")
-            else:
-                whole_text += text + ' '
-    # return the text for all chunks detected
-    return whole_text
 
 def delete_new_line_char(element):
     return element.replace('\n', '')
@@ -69,42 +25,150 @@ def get_vocabulary(path):
 
     return list(result)
 
+def mp3_to_wav(file_path):
+    # convert mp3 file to wav                                                       
+    sound_mp3 = AudioSegment.from_mp3(file_path)
+
+    sound_mp3 = sound_mp3.set_channels(1) # mono
+    sound_mp3 = sound_mp3.set_frame_rate(16000) # 16000Hz
+    
+    # create new .wav file path
+    file_wav_format_path = path.join(BASE_PATH, 'transcript.wav')
+    
+    # export the mp3 to .wav inside the project
+    sound_mp3.export(file_wav_format_path, format="wav")
+
+    return file_wav_format_path
+
+def generate_wav_chunks(file_path):
+    
+    # open the audio file using pydub 
+    sound = AudioSegment.from_wav(file_path)
+
+    # split audio sound where silence is 700 miliseconds or more and get chunks
+    chunks = split_on_silence(sound,
+        min_silence_len = 500,
+        silence_thresh = sound.dBFS-16,
+        keep_silence=500,
+    )
+
+    
+    # create a directory to store the audio chunks
+    if not path.isdir(FOLDER_NAME):
+        mkdir(FOLDER_NAME)
+
+    # process each chunk 
+    for i, audio_chunk in enumerate(chunks, start=1):
+        # export audio chunk and save it in
+        # the `FOLDER_NAME` directory.
+        print("saving chunk{0}.wav".format(i))
+        chunk_filename = path.join(FOLDER_NAME, f"chunk{i}.wav")
+        audio_chunk.export(chunk_filename, format="wav")
+
+    return len(chunks)
+
+def analyze_chunk(file_path):
+    wf = wave.open(file_path, "rb")
+    rec = KaldiRecognizer(model, wf.getframerate())
+    rec.SetWords(True)
+
+    # get the list of JSON dictionaries
+    results = []
+    # recognize speech using vosk model
+    while True:
+        data = wf.readframes(4000)
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            part_result = json.loads(rec.Result())
+            results.append(part_result)
+    part_result = json.loads(rec.FinalResult())
+    results.append(part_result)
+    wf.close()  # close audiofile 
+
+    return {
+        "results": results,
+        "duration": mediainfo(file_path)['duration']
+    }
+
+def add_chunk_results(results, whole_text, result_dict, overall_timestamp ):
+    for sentence in results:
+        if len(sentence) == 1:
+            # sometimes there are bugs in recognition 
+            # and it returns an empty dictionary
+            # {'text': ''}
+            continue
+        
+        whole_text += ' ' + sentence['text']
+        for obj in sentence['result']:
+            word = obj["word"]
+            timestamp = obj["start"]
+            if word in VOCABULARY:
+                if word in result_dict:
+                    result_dict[word]["freq"] += 1
+                    result_dict[word]["timestamps"].append(overall_timestamp + timestamp)
+                else:
+                    result_dict[word] = {
+                        "freq": 1,
+                        "timestamps": [overall_timestamp + timestamp]
+                    }
+    return {
+        "text": whole_text,
+        "dict": result_dict
+    }
+
 def get_sentiment(text):
     blob = TextBlob(text)
-    print('blob.sentiment: ', blob.sentiment)
     sentiment = blob.sentiment.polarity
     return sentiment
 
-def get_word_count(text):
-    result = {}
-    blob = TextBlob(text)
-    for word in VOCABULARY:
-        print(word)
-        result[word] = blob.words.count(word)
-    
-    return result
-
-
 def main():
-    
-    file_path = input('Type the mp3 file path: ')
-    """ vocabulary_path = input('Type the vocabulary file path: ') """
 
-    # read mp3 file path
-    text = mp3_to_text(file_path)
-    print('text: ', text)
-
-    """ # read user vocabulary
+    # read user vocabulary
+    vocabulary_path = input('Type the vocabulary file path: ')
     global VOCABULARY 
     VOCABULARY = get_vocabulary(vocabulary_path)
-    print(VOCABULARY)
 
-    # get sentiment. s > 0.2 positive, s < -0.2 negative, -0.2 > s < 0.2 neutral
-    sentiment = get_sentiment(text)
-    print('sentiment', sentiment)
+    file_path = input('Type the mp3 file path: ')
+    # conver mp3 file to wav
+    wav_file_path = mp3_to_wav(file_path)
 
-    # get word count
-    word_count = get_word_count(text)
-    print('word_count: ', word_count) """
+    # split the wav file in chunks
+    number_of_chunks = generate_wav_chunks(wav_file_path)
+
+    whole_text = ""
+    result_dict = {}
+    overall_timestamp = 0
+    #loop chunks
+    for i in range(number_of_chunks):
+        chunk_path = path.join(FOLDER_NAME, f"chunk{i + 1}.wav")
+        audio_results = analyze_chunk(chunk_path)
+        results = add_chunk_results(audio_results["results"], whole_text, result_dict, overall_timestamp)
+        whole_text = results["text"]
+        result_dict = results["dict"]
+        chunk_duration = audio_results["duration"].split('.')[0]
+        overall_timestamp += int(float(chunk_duration))
+
+    print('overall_timestamp:', overall_timestamp)
+    # get sentiment from text
+    sentiment_value = get_sentiment(whole_text)
+    sentiment = ""
+    if sentiment_value >= 0.2:
+        sentiment = "POSITIVE"
+    elif sentiment_value <= -0.2:
+        sentiment = "NEGATIVE"
+    else:
+        sentiment = "NEUTRAL"
+
+    
+    print("text:")
+    print(whole_text)
+    print("")
+    print("sentiment:")
+    print(sentiment)
+    print("")
+    print("freq + timestamps")
+    print(result_dict)
+
 
 main()
