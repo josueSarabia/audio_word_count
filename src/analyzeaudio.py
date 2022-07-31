@@ -4,7 +4,7 @@ from pydub.silence import split_on_silence
 from pydub.utils import mediainfo
 from textblob import TextBlob
 
-from wave import open
+import wave
 from json import loads, dump
 from vosk import Model, KaldiRecognizer
 
@@ -68,7 +68,7 @@ def generate_wav_chunks(file_path, base_path):
     return len(chunks)
 
 def analyze_chunk(file_path):
-    wf = open(file_path, "rb")
+    wf = wave.open(file_path, "rb")
     rec = KaldiRecognizer(model, wf.getframerate())
     rec.SetWords(True)
 
