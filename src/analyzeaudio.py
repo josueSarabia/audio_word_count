@@ -10,7 +10,8 @@ from vosk import Model, KaldiRecognizer
 
 VOCABULARY_NAME = "vocabulary.txt"
 FOLDER_NAME = "audio-chunks"
-model_path = "../vosk-model-small-en-us-0.15"
+model_path = path.join(path.dirname(getcwd()), "vosk-model-small-en-us-0.15")
+print(model_path)
 model = Model(model_path)
 
 
