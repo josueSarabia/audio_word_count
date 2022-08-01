@@ -22,7 +22,7 @@ the API docs can be found here: [https://audio-to-text-inktel.herokuapp.com/docs
  
  receives a .txt file. every line must be only one word.
  
- # upload vocabulary
+ # upload audio
 
 ### Request
 
@@ -31,48 +31,49 @@ the API docs can be found here: [https://audio-to-text-inktel.herokuapp.com/docs
  receives a mp3 file.
  
  ### Response
- {
-    "sentiment": "NEUTRAL",
-    "text": "",
-    "freq": {
-        "word1": {
-            "freq": 6,
-            "timestamps": [
-                "00:00:03:",
-            ]
+    {
+        "sentiment": "NEUTRAL",
+        "text": "",
+        "freq": {
+            "word1": {
+                "freq": 6,
+                "timestamps": [
+                    "00:00:03:",
+                ]
+            },
+            "word2": {
+                "freq": 1,
+                "timestamps": [
+                    "00:00:07:"
+               ]
+            },
         },
-        "word2": {
-            "freq": 1,
-            "timestamps": [
-                "00:00:07:"
-            ]
-        },
-    },
-    "UUID": "06dbed83-8bd2-4b1b-a009-7a9d06cedf0d"
-}
+        "UUID": "06dbed83-8bd2-4b1b-a009-7a9d06cedf0d"
+    }
 
-
+# get result by id
+ 
 ### Request
 
 `GET https://audio-to-text-inktel.herokuapp.com/result/06dbed83-8bd2-4b1b-a009-7a9d06cedf0d`
  
-  ### Response
- {
-    "sentiment": "NEUTRAL",
-    "text": "",
-    "freq": {
-        "word1": {
-            "freq": 6,
-            "timestamps": [
-                "00:00:03:",
-            ]
+### Response
+    {
+        "sentiment": "NEUTRAL",
+        "text": "",
+        "freq": {
+            "word1": {
+                "freq": 6,
+                "timestamps": [
+                    "00:00:03:",
+                ]
+            },
+            "word2": {
+                "freq": 1,
+                "timestamps": [
+                    "00:00:07:"
+               ]
+            },
         },
-        "word2": {
-            "freq": 1,
-            "timestamps": [
-                "00:00:07:"
-            ]
-        },
-    },
-    "UUID": "06dbed83-8bd2-4b1b-a009-7a9d06cedf0d"
-}
+        "UUID": "06dbed83-8bd2-4b1b-a009-7a9d06cedf0d"
+    }
