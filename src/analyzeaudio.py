@@ -172,7 +172,8 @@ def analyze_audio(file_path, base_path):
     vocabulary = []
 
     # read user vocabulary
-    vocabulary_path = path.join(path.dirname(getcwd()), VOCABULARY_NAME)
+    # path.dirname(getcwd())
+    vocabulary_path = path.join(getcwd(), VOCABULARY_NAME)
     vocabulary = get_vocabulary(vocabulary_path)
 
     # conver mp3 file to wav

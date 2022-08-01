@@ -9,7 +9,8 @@ uploadRouter = APIRouter()
 @uploadRouter.post("/upload")
 async def create_upload_file(file: UploadFile = File(...)):
     # get results folder path
-    results_folder = path.join(path.dirname(getcwd()), "results")
+    # path.dirname(getcwd())
+    results_folder = path.join(getcwd(), "results")
 
     # validate if results folder path exists
     if not path.exists(results_folder):
@@ -24,7 +25,8 @@ async def create_upload_file(file: UploadFile = File(...)):
         mkdir(base_path)
     
     # validate if vocabulary.txt(words configured by user) exists
-    if not path.exists(path.join(path.dirname(getcwd()), "vocabulary.txt")):
+    # path.dirname(getcwd())
+    if not path.exists(path.join(getcwd(), "vocabulary.txt")):
         raise HTTPException(
             status_code=500,
             detail=f"file vocabulary.txt not found",
