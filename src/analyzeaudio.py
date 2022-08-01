@@ -11,10 +11,8 @@ from vosk import Model, KaldiRecognizer
 VOCABULARY_NAME = "vocabulary.txt"
 FOLDER_NAME = "audio-chunks"
 
-# add path path.dirname()
+# add path path.dirname(getcwd())
 model_path = path.join(getcwd(), "vosk-model-small-en-us-0.15")
-
-print(model_path)
 model = Model(model_path)
 
 
@@ -212,16 +210,6 @@ def analyze_audio(file_path, base_path):
         sentiment = "NEGATIVE"
     else:
         sentiment = "NEUTRAL"
-
-    
-    """ print("text:")
-    print(whole_text)
-    print("")
-    print("sentiment:")
-    print(sentiment)
-    print("")
-    print("freq + timestamps")
-    print(result_dict) """
 
     results_dict =  {
         "sentiment": sentiment,
